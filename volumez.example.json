@@ -1,0 +1,31 @@
+{
+  "mounts": [
+    {
+      "path": "/s3-data",
+      "backend": "s3",
+      "config": {
+        "bucket": "my-bucket",
+        "prefix": "data",
+        "region": "us-east-1"
+      }
+    },
+    {
+      "path": "/api",
+      "backend": "http",
+      "config": {
+        "base_url": "https://api.example.com/files",
+        "headers": {
+          "Authorization": "Bearer YOUR_TOKEN_HERE"
+        },
+        "timeout": 30
+      }
+    }
+  ],
+  "cache": {
+    "enabled": true,
+    "max_size": 1073741824,
+    "ttl": 300,
+    "metadata_ttl": 60
+  },
+  "debug": false
+}
