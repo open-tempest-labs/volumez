@@ -37,7 +37,7 @@ sudo pacman -S fuse3
 ### Option 1: Homebrew (macOS)
 
 ```bash
-brew tap open-tempest-labs/tap
+brew tap open-tempest-labs/volumez
 brew install volumez
 ```
 

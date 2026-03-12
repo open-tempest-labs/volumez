@@ -83,7 +83,7 @@ release:
 brews:
   - repository:
       owner: open-tempest-labs
-      name: homebrew-tap
+      name: homebrew-volumez
     directory: Formula
     homepage: "https://github.com/open-tempest-labs/volumez"
     description: "FUSE filesystem that unifies multiple storage backends under a single mountpoint"
