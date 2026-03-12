@@ -1,0 +1,116 @@
+# GoReleaser configuration for volumez
+version: 2
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: volumez
+    main: ./cmd/volumez
+    binary: volumez
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - darwin
+      - linux
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w
+      - -X main.version={{.Version}}
+
+archives:
+  - id: volumez
+    format: tar.gz
+    name_template: >-
+      {{ .ProjectName }}_
+      {{- .Version }}_
+      {{- .Os }}_
+      {{- .Arch }}
+    format_overrides:
+      - goos: windows
+        format: zip
+    files:
+      - LICENSE
+      - README.md
+      - QUICKSTART.md
+      - INSTALL.md
+      - volumez.example.json
+
+checksum:
+  name_template: 'checksums.txt'
+
+snapshot:
+  name_template: "{{ incpatch .Version }}-next"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
+      - '^chore:'
+      - Merge pull request
+      - Merge branch
+
+release:
+  github:
+    owner: open-tempest-labs
+    name: volumez
+  draft: false
+  prerelease: auto
+  name_template: "v{{.Version}}"
+  footer: |
+    ## Installation
+
+    ### Homebrew (macOS)
+    ```bash
+    brew tap open-tempest-labs/tap
+    brew install volumez
+    ```
+
+    ### Binary Installation
+    Download the appropriate binary for your platform from the assets below.
+
+    See [INSTALL.md](https://github.com/open-tempest-labs/volumez/blob/main/INSTALL.md) for detailed installation instructions.
+
+    ---
+
+    🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+brews:
+  - repository:
+      owner: open-tempest-labs
+      name: homebrew-tap
+    directory: Formula
+    homepage: "https://github.com/open-tempest-labs/volumez"
+    description: "FUSE filesystem that unifies multiple storage backends under a single mountpoint"
+    license: "Apache-2.0"
+    dependencies:
+      - name: macfuse
+        type: optional
+    install: |
+      bin.install "volumez"
+      (etc/"volumez").install "volumez.example.json"
+    caveats: |
+      volumez requires macFUSE to be installed and loaded.
+
+      To install macFUSE:
+        brew install --cask macfuse
+
+      After installation, you may need to:
+        1. Allow the macFUSE kernel extension in System Settings > Privacy & Security
+        2. Restart your computer
+
+      Example configuration installed to:
+        #{etc}/volumez/volumez.example.json
+
+      To get started:
+        1. Copy the example config: cp #{etc}/volumez/volumez.example.json ~/volumez.json
+        2. Edit ~/volumez.json with your backend configuration
+        3. Create a mount point: mkdir /tmp/mymount
+        4. Run: volumez -config ~/volumez.json -mount /tmp/mymount
+    test: |
+      assert_match "volumez v", shell_output("#{bin}/volumez -version")
