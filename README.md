@@ -45,19 +45,34 @@ Volumez allows you to mount cloud storage (like S3) and REST APIs as local files
 
 ## Installation
 
-### Prerequisites
+### Homebrew (macOS)
 
+```bash
+brew tap open-tempest-labs/volumez
+brew install volumez
+```
+
+The formula automatically installs macFUSE as a dependency. After installation, you may need to:
+1. Allow the macFUSE kernel extension in System Settings > Privacy & Security
+2. Restart your computer
+
+### Pre-built Binaries
+
+Download the latest release from the [releases page](https://github.com/open-tempest-labs/volumez/releases).
+
+See [INSTALL.md](INSTALL.md) for detailed installation instructions for all platforms.
+
+### Build from Source
+
+**Prerequisites:**
 - Go 1.21 or later
 - FUSE libraries:
   - **Linux**: Install `libfuse-dev` or `fuse-devel` package
-  - **macOS**: Install macFUSE from https://osxfuse.github.io/ or use `brew install macfuse`
+  - **macOS**: Install macFUSE from https://osxfuse.github.io/ or use `brew install --cask macfuse`
 - AWS credentials (for S3 backend)
 
-**Note**: macOS support requires macFUSE to be installed. The build may show warnings on macOS - this is expected.
-
-### Build from source
-
 ```bash
+git clone https://github.com/open-tempest-labs/volumez.git
 cd volumez
 go build -o volumez ./cmd/volumez
 ```
