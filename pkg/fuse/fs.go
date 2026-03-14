@@ -32,6 +32,7 @@ var _ = (fs.NodeUnlinker)((*FS)(nil))
 var _ = (fs.NodeRmdirer)((*FS)(nil))
 var _ = (fs.NodeRenamer)((*FS)(nil))
 var _ = (fs.NodeGetattrer)((*FS)(nil))
+var _ = (fs.NodeStatfser)((*FS)(nil))
 // Xattr support is disabled to avoid macOS fcopyfile() issues
 // Uncomment these to enable backend-specific xattr support
 // var _ = (fs.NodeGetxattrer)((*FS)(nil))
@@ -54,6 +55,24 @@ func (f *FS) Getattr(ctx context.Context, fh fs.FileHandle, out *fuse.AttrOut) s
 	out.Mode = 0755 | syscall.S_IFDIR
 	out.Uid = f.uid
 	out.Gid = f.gid
+	return 0
+}
+
+// Statfs returns filesystem statistics
+// For cloud storage backends, we report very large values since capacity
+// is essentially unlimited (constrained by account quotas, not the filesystem)
+func (f *FS) Statfs(ctx context.Context, out *fuse.StatfsOut) syscall.Errno {
+	const blockSize = 4096
+	const totalBlocks = 1024 * 1024 * 1024 * 1024 // 4PB total (essentially unlimited)
+	const freeBlocks = totalBlocks                // Report all as free
+
+	out.Bsize = blockSize       // Block size
+	out.Blocks = totalBlocks    // Total blocks
+	out.Bfree = freeBlocks      // Free blocks
+	out.Bavail = freeBlocks     // Available blocks (non-root)
+	out.Files = 1000000000      // Total inodes (1 billion)
+	out.Ffree = 1000000000      // Free inodes
+
 	return 0
 }
 
