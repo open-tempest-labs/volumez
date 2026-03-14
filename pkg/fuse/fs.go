@@ -32,6 +32,10 @@ var _ = (fs.NodeUnlinker)((*FS)(nil))
 var _ = (fs.NodeRmdirer)((*FS)(nil))
 var _ = (fs.NodeRenamer)((*FS)(nil))
 var _ = (fs.NodeGetattrer)((*FS)(nil))
+var _ = (fs.NodeGetxattrer)((*FS)(nil))
+var _ = (fs.NodeSetxattrer)((*FS)(nil))
+var _ = (fs.NodeListxattrer)((*FS)(nil))
+var _ = (fs.NodeRemovexattrer)((*FS)(nil))
 
 // NewFS creates a new FUSE filesystem
 func NewFS(mapper *pathmap.PathMapper, debug bool) fs.InodeEmbedder {
@@ -159,6 +163,10 @@ var _ = (fs.NodeUnlinker)((*Dir)(nil))
 var _ = (fs.NodeRmdirer)((*Dir)(nil))
 var _ = (fs.NodeRenamer)((*Dir)(nil))
 var _ = (fs.NodeGetattrer)((*Dir)(nil))
+var _ = (fs.NodeGetxattrer)((*Dir)(nil))
+var _ = (fs.NodeSetxattrer)((*Dir)(nil))
+var _ = (fs.NodeListxattrer)((*Dir)(nil))
+var _ = (fs.NodeRemovexattrer)((*Dir)(nil))
 
 // Getattr returns attributes for the directory
 func (d *Dir) Getattr(ctx context.Context, fh fs.FileHandle, out *fuse.AttrOut) syscall.Errno {
@@ -415,6 +423,10 @@ var _ = (fs.InodeEmbedder)((*File)(nil))
 var _ = (fs.NodeOpener)((*File)(nil))
 var _ = (fs.NodeGetattrer)((*File)(nil))
 var _ = (fs.NodeSetattrer)((*File)(nil))
+var _ = (fs.NodeGetxattrer)((*File)(nil))
+var _ = (fs.NodeSetxattrer)((*File)(nil))
+var _ = (fs.NodeListxattrer)((*File)(nil))
+var _ = (fs.NodeRemovexattrer)((*File)(nil))
 
 // Getattr returns attributes for the file
 func (f *File) Getattr(ctx context.Context, fh fs.FileHandle, out *fuse.AttrOut) syscall.Errno {
@@ -563,4 +575,230 @@ func (fh *FileHandle) Flush(ctx context.Context) syscall.Errno {
 // isNotFound checks if an error is a "not found" error
 func isNotFound(err error) bool {
 	return errors.Is(err, backend.ErrNotFound) || fmt.Sprintf("%v", err) == "not found"
+}
+
+// Extended attribute operations for FS (root)
+// These delegate to the backend if it supports XattrBackend, otherwise silently succeed
+
+func (f *FS) Getxattr(ctx context.Context, attr string, dest []byte) (uint32, syscall.Errno) {
+	// Root directory doesn't have xattrs
+	return 0, syscall.ENODATA
+}
+
+func (f *FS) Setxattr(ctx context.Context, attr string, data []byte, flags uint32) syscall.Errno {
+	// Silently succeed - root doesn't store xattrs
+	return 0
+}
+
+func (f *FS) Listxattr(ctx context.Context, dest []byte) (uint32, syscall.Errno) {
+	// Return empty list
+	return 0, 0
+}
+
+func (f *FS) Removexattr(ctx context.Context, attr string) syscall.Errno {
+	// Silently succeed
+	return 0
+}
+
+// Extended attribute operations for Dir
+// Delegates to backend if it implements XattrBackend
+
+func (d *Dir) Getxattr(ctx context.Context, attr string, dest []byte) (uint32, syscall.Errno) {
+	b, relPath, err := d.mapper.Resolve(d.path)
+	if err != nil {
+		return 0, syscall.ENOENT
+	}
+
+	// Check if backend supports xattrs
+	if xb, ok := b.(backend.XattrBackend); ok {
+		value, err := xb.GetXattr(ctx, relPath, attr)
+		if err != nil {
+			if isNotFound(err) {
+				return 0, syscall.ENODATA
+			}
+			return 0, syscall.EIO
+		}
+		if len(dest) > 0 {
+			n := copy(dest, value)
+			return uint32(n), 0
+		}
+		return uint32(len(value)), 0
+	}
+
+	// Backend doesn't support xattrs
+	return 0, syscall.ENODATA
+}
+
+func (d *Dir) Setxattr(ctx context.Context, attr string, data []byte, flags uint32) syscall.Errno {
+	b, relPath, err := d.mapper.Resolve(d.path)
+	if err != nil {
+		return syscall.ENOENT
+	}
+
+	// Check if backend supports xattrs
+	if xb, ok := b.(backend.XattrBackend); ok {
+		if err := xb.SetXattr(ctx, relPath, attr, data); err != nil {
+			return syscall.EIO
+		}
+		return 0
+	}
+
+	// Backend doesn't support xattrs - silently succeed
+	return 0
+}
+
+func (d *Dir) Listxattr(ctx context.Context, dest []byte) (uint32, syscall.Errno) {
+	b, relPath, err := d.mapper.Resolve(d.path)
+	if err != nil {
+		return 0, syscall.ENOENT
+	}
+
+	// Check if backend supports xattrs
+	if xb, ok := b.(backend.XattrBackend); ok {
+		names, err := xb.ListXattr(ctx, relPath)
+		if err != nil {
+			return 0, syscall.EIO
+		}
+
+		// Format as null-separated list
+		var total uint32
+		for _, name := range names {
+			total += uint32(len(name)) + 1 // +1 for null terminator
+		}
+
+		if len(dest) > 0 {
+			var written uint32
+			for _, name := range names {
+				n := copy(dest[written:], name)
+				written += uint32(n)
+				if int(written) < len(dest) {
+					dest[written] = 0
+					written++
+				}
+			}
+			return written, 0
+		}
+		return total, 0
+	}
+
+	// Backend doesn't support xattrs - return empty list
+	return 0, 0
+}
+
+func (d *Dir) Removexattr(ctx context.Context, attr string) syscall.Errno {
+	b, relPath, err := d.mapper.Resolve(d.path)
+	if err != nil {
+		return syscall.ENOENT
+	}
+
+	// Check if backend supports xattrs
+	if xb, ok := b.(backend.XattrBackend); ok {
+		if err := xb.RemoveXattr(ctx, relPath, attr); err != nil {
+			if isNotFound(err) {
+				return syscall.ENODATA
+			}
+			return syscall.EIO
+		}
+		return 0
+	}
+
+	// Backend doesn't support xattrs - silently succeed
+	return 0
+}
+
+// Extended attribute operations for File
+// Same implementation as Dir
+
+func (f *File) Getxattr(ctx context.Context, attr string, dest []byte) (uint32, syscall.Errno) {
+	b, relPath, err := f.mapper.Resolve(f.path)
+	if err != nil {
+		return 0, syscall.ENOENT
+	}
+
+	if xb, ok := b.(backend.XattrBackend); ok {
+		value, err := xb.GetXattr(ctx, relPath, attr)
+		if err != nil {
+			if isNotFound(err) {
+				return 0, syscall.ENODATA
+			}
+			return 0, syscall.EIO
+		}
+		if len(dest) > 0 {
+			n := copy(dest, value)
+			return uint32(n), 0
+		}
+		return uint32(len(value)), 0
+	}
+
+	return 0, syscall.ENODATA
+}
+
+func (f *File) Setxattr(ctx context.Context, attr string, data []byte, flags uint32) syscall.Errno {
+	b, relPath, err := f.mapper.Resolve(f.path)
+	if err != nil {
+		return syscall.ENOENT
+	}
+
+	if xb, ok := b.(backend.XattrBackend); ok {
+		if err := xb.SetXattr(ctx, relPath, attr, data); err != nil {
+			return syscall.EIO
+		}
+		return 0
+	}
+
+	return 0
+}
+
+func (f *File) Listxattr(ctx context.Context, dest []byte) (uint32, syscall.Errno) {
+	b, relPath, err := f.mapper.Resolve(f.path)
+	if err != nil {
+		return 0, syscall.ENOENT
+	}
+
+	if xb, ok := b.(backend.XattrBackend); ok {
+		names, err := xb.ListXattr(ctx, relPath)
+		if err != nil {
+			return 0, syscall.EIO
+		}
+
+		var total uint32
+		for _, name := range names {
+			total += uint32(len(name)) + 1
+		}
+
+		if len(dest) > 0 {
+			var written uint32
+			for _, name := range names {
+				n := copy(dest[written:], name)
+				written += uint32(n)
+				if int(written) < len(dest) {
+					dest[written] = 0
+					written++
+				}
+			}
+			return written, 0
+		}
+		return total, 0
+	}
+
+	return 0, 0
+}
+
+func (f *File) Removexattr(ctx context.Context, attr string) syscall.Errno {
+	b, relPath, err := f.mapper.Resolve(f.path)
+	if err != nil {
+		return syscall.ENOENT
+	}
+
+	if xb, ok := b.(backend.XattrBackend); ok {
+		if err := xb.RemoveXattr(ctx, relPath, attr); err != nil {
+			if isNotFound(err) {
+				return syscall.ENODATA
+			}
+			return syscall.EIO
+		}
+		return 0
+	}
+
+	return 0
 }

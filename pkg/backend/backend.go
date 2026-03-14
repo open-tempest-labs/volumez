@@ -81,6 +81,28 @@ type Backend interface {
 	Close() error
 }
 
+// XattrBackend is an optional interface for backends that support extended attributes
+// Backends that implement this can store xattrs in their native storage:
+//   - S3: user-defined object metadata
+//   - HTTP: custom headers
+//   - Local filesystem: native xattrs
+// Backends that don't implement this will silently ignore xattr operations
+type XattrBackend interface {
+	Backend
+
+	// GetXattr retrieves an extended attribute value
+	GetXattr(ctx context.Context, path string, name string) ([]byte, error)
+
+	// SetXattr sets an extended attribute value
+	SetXattr(ctx context.Context, path string, name string, value []byte) error
+
+	// ListXattr lists all extended attribute names
+	ListXattr(ctx context.Context, path string) ([]string, error)
+
+	// RemoveXattr removes an extended attribute
+	RemoveXattr(ctx context.Context, path string, name string) error
+}
+
 // BackendFactory creates a backend from configuration
 type BackendFactory func(config map[string]interface{}) (Backend, error)
 
