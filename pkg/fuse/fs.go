@@ -32,10 +32,12 @@ var _ = (fs.NodeUnlinker)((*FS)(nil))
 var _ = (fs.NodeRmdirer)((*FS)(nil))
 var _ = (fs.NodeRenamer)((*FS)(nil))
 var _ = (fs.NodeGetattrer)((*FS)(nil))
-var _ = (fs.NodeGetxattrer)((*FS)(nil))
-var _ = (fs.NodeSetxattrer)((*FS)(nil))
-var _ = (fs.NodeListxattrer)((*FS)(nil))
-var _ = (fs.NodeRemovexattrer)((*FS)(nil))
+// Xattr support is disabled to avoid macOS fcopyfile() issues
+// Uncomment these to enable backend-specific xattr support
+// var _ = (fs.NodeGetxattrer)((*FS)(nil))
+// var _ = (fs.NodeSetxattrer)((*FS)(nil))
+// var _ = (fs.NodeListxattrer)((*FS)(nil))
+// var _ = (fs.NodeRemovexattrer)((*FS)(nil))
 
 // NewFS creates a new FUSE filesystem
 func NewFS(mapper *pathmap.PathMapper, debug bool) fs.InodeEmbedder {
@@ -163,10 +165,11 @@ var _ = (fs.NodeUnlinker)((*Dir)(nil))
 var _ = (fs.NodeRmdirer)((*Dir)(nil))
 var _ = (fs.NodeRenamer)((*Dir)(nil))
 var _ = (fs.NodeGetattrer)((*Dir)(nil))
-var _ = (fs.NodeGetxattrer)((*Dir)(nil))
-var _ = (fs.NodeSetxattrer)((*Dir)(nil))
-var _ = (fs.NodeListxattrer)((*Dir)(nil))
-var _ = (fs.NodeRemovexattrer)((*Dir)(nil))
+// Xattr support is disabled to avoid macOS fcopyfile() issues
+// var _ = (fs.NodeGetxattrer)((*Dir)(nil))
+// var _ = (fs.NodeSetxattrer)((*Dir)(nil))
+// var _ = (fs.NodeListxattrer)((*Dir)(nil))
+// var _ = (fs.NodeRemovexattrer)((*Dir)(nil))
 
 // Getattr returns attributes for the directory
 func (d *Dir) Getattr(ctx context.Context, fh fs.FileHandle, out *fuse.AttrOut) syscall.Errno {
@@ -423,10 +426,11 @@ var _ = (fs.InodeEmbedder)((*File)(nil))
 var _ = (fs.NodeOpener)((*File)(nil))
 var _ = (fs.NodeGetattrer)((*File)(nil))
 var _ = (fs.NodeSetattrer)((*File)(nil))
-var _ = (fs.NodeGetxattrer)((*File)(nil))
-var _ = (fs.NodeSetxattrer)((*File)(nil))
-var _ = (fs.NodeListxattrer)((*File)(nil))
-var _ = (fs.NodeRemovexattrer)((*File)(nil))
+// Xattr support is disabled to avoid macOS fcopyfile() issues
+// var _ = (fs.NodeGetxattrer)((*File)(nil))
+// var _ = (fs.NodeSetxattrer)((*File)(nil))
+// var _ = (fs.NodeListxattrer)((*File)(nil))
+// var _ = (fs.NodeRemovexattrer)((*File)(nil))
 
 // Getattr returns attributes for the file
 func (f *File) Getattr(ctx context.Context, fh fs.FileHandle, out *fuse.AttrOut) syscall.Errno {

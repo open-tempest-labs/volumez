@@ -385,6 +385,15 @@ go test ./...
 - Use larger read/write buffers
 - Consider if use case is appropriate (see Limitations)
 
+### macOS file copy issues
+
+Volumez disables extended attribute (xattr) support to ensure compatibility with macOS `cp` and Finder:
+
+- **Why**: macOS `fcopyfile()` requires full xattr support; partial implementation causes copy failures
+- **Impact**: Standard `cp` and Finder drag-and-drop work correctly
+- **Trade-off**: macOS metadata (Finder tags, quarantine flags) is not preserved when copying to volumez mounts
+- **Future**: Backend-specific xattr support can be enabled by uncommenting xattr interfaces in `pkg/fuse/fs.go`
+
 ## Contributing
 
 Contributions welcome! Areas for improvement:
